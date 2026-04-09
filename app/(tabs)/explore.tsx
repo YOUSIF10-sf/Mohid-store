@@ -1,112 +1,258 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Colors } from '@/constants/theme';
+import { getApiClient } from '@/services/api';
+import { useFocusEffect } from 'expo-router';
+import { AlertCircle, Archive, Bell, Search, ShoppingBag, X } from 'lucide-react-native';
+import React, { useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  Image as RNImage
+} from 'react-native';
+import { useAuth } from '@/hooks/use-auth';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+const { width } = Dimensions.get('window');
+const isWeb = Platform.OS === 'web';
 
-export default function TabTwoScreen() {
+interface Product {
+  id: number;
+  name: string;
+  current_quantity: number;
+  original_quantity: number;
+  image_url: string;
+}
+
+export default function UnifiedStorefrontScreen() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [withdrawQty, setWithdrawQty] = useState('1');
+  const [withdrawNote, setWithdrawNote] = useState('');
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  const fetchProducts = React.useCallback(async () => {
+    try {
+      const api = await getApiClient();
+      const response = await api.get('/api/products');
+      setProducts(response.data as Product[]);
+      setFilteredProducts(response.data as Product[]);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchProducts();
+    }, [fetchProducts])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchProducts();
+  };
+
+  const handleSearch = (text: string) => {
+    setSearchQuery(text);
+    setFilteredProducts(products.filter(p => p.name.toLowerCase().includes(text.toLowerCase())));
+  };
+
+  const executeWithdraw = async () => {
+    if (!selectedProduct) return;
+    const qty = parseInt(withdrawQty);
+    if (isNaN(qty) || qty < 1 || qty > selectedProduct.current_quantity) {
+      Alert.alert('خطأ', 'الكمية غير صالحة');
+      return;
+    }
+    if (withdrawNote.trim().length < 3) {
+      Alert.alert('تنبيه', 'يرجى كتابة سبب السحب');
+      return;
+    }
+
+    setIsWithdrawing(true);
+    try {
+      const api = await getApiClient();
+      await api.post(`/api/withdraw/${selectedProduct.id}`, {
+        quantity: qty,
+        note: withdrawNote.trim()
+      });
+      Alert.alert('نجاح', 'تمت العملية');
+      setSelectedProduct(null);
+      setWithdrawQty('1');
+      setWithdrawNote('');
+      fetchProducts();
+    } catch (error) {
+      Alert.alert('خطأ', 'فشلت العملية');
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
+  const ProductCard = ({ item }: { item: Product }) => {
+    const isOutOfStock = item.current_quantity <= 0;
+    const hasImage = !!item.image_url;
+
+    return (
+      <View style={[styles.card, isWeb && styles.webCard]}>
+        <View style={styles.imageContainer}>
+          {hasImage ? (
+            <Image source={{ uri: item.image_url }} style={styles.productImage} resizeMode="cover" />
+          ) : (
+            <ShoppingBag size={20} color="#d2d2d7" />
+          )}
+        </View>
+
+        <View style={styles.cardContent}>
+          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+          <Text style={[styles.stockValue, isOutOfStock && { color: Colors.danger }]}>
+            المتوفر: {item.current_quantity}
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.withdrawBtn, isOutOfStock && styles.withdrawBtnDisabled]}
+            disabled={isOutOfStock}
+            onPress={() => setSelectedProduct(item)}
+          >
+            <Archive size={14} color="#fff" />
+            <Text style={styles.withdrawBtnText}>سحب</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>المخزن</Text>
+          <View style={styles.searchBox}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="بحث عن منتج..."
+              value={searchQuery}
+              onChangeText={handleSearch}
+            />
+            <Search size={18} color="#86868b" />
+          </View>
+        </View>
+
+        <FlatList
+          data={filteredProducts}
+          renderItem={({ item }) => <ProductCard item={item} />}
+          keyExtractor={item => item.id.toString()}
+          key={isWeb ? 'web-list' : 'mob-list'}
+          numColumns={isWeb ? 5 : 2}
+          scrollEnabled={false}
+          columnWrapperStyle={styles.columnWrapper}
+          contentContainerStyle={[styles.listContainer, isWeb && { flexDirection: 'row-reverse', flexWrap: 'wrap' }]}
+          ListEmptyComponent={<Text style={styles.emptyText}>لا يوجد منتجات</Text>}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+      </ScrollView>
+
+      <Modal visible={!!selectedProduct} transparent animationType="slide">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isWeb && styles.webModal]}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setSelectedProduct(null)}><X size={22} /></TouchableOpacity>
+              <Text style={styles.modalTitle}>تأكيد السحب</Text>
+            </View>
+            <Text style={styles.modalProduct}>{selectedProduct?.name}</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>الكمية</Text>
+              <TextInput style={styles.input} keyboardType="numeric" value={withdrawQty} onChangeText={setWithdrawQty} />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>السبب</Text>
+              <TextInput style={[styles.input, { height: 80 }]} multiline value={withdrawNote} onChangeText={setWithdrawNote} />
+            </View>
+            <TouchableOpacity style={styles.confirmBtn} onPress={executeWithdraw} disabled={isWithdrawing}>
+              {isWithdrawing ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>تأكيد</Text>}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: { flex: 1, backgroundColor: '#fbfbfd' },
+  scrollContent: { paddingBottom: 40, paddingTop: 105 },
+  header: { paddingHorizontal: 16, marginBottom: 12, alignItems: 'flex-end' },
+  headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  headerLeftArea: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bellBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#d2d2d7', justifyContent: 'center', alignItems: 'center' },
+  webProfileHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', padding: 4, borderRadius: 12, borderWidth: 1, borderColor: '#f2f2f7' },
+  profileTextContainer: { alignItems: 'flex-end' },
+  profileNamePrefix: { fontFamily: 'Cairo', fontSize: 9, color: '#86868b' },
+  profileName: { fontFamily: 'CairoBold', fontSize: 11, color: '#1d1d1f' },
+  profileCircleSmall: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#1d1d1f', justifyContent: 'center', alignItems: 'center' },
+  headerTitle: { fontFamily: 'CairoBold', fontSize: 18, color: '#1d1d1f', textAlign: 'right' },
+  searchBox: { 
+    alignSelf: 'flex-end',
+    width: 210, 
+    height: 34, 
+    backgroundColor: '#ffffff', 
+    borderRadius: 8, 
+    borderWidth: 1.5, 
+    borderColor: '#1d1d1f', 
+    flexDirection: 'row-reverse', 
+    alignItems: 'center', 
+    paddingHorizontal: 10,
+    marginTop: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1
   },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  searchInput: { flex: 1, fontFamily: 'Cairo', fontSize: 13, textAlign: 'right' },
+  listContainer: { paddingHorizontal: 8 },
+  columnWrapper: { flexDirection: 'row-reverse', justifyContent: 'flex-start', gap: 10, marginBottom: 10 },
+  card: { width: (width - 48) / 2, backgroundColor: '#fff', borderRadius: 12, padding: 8, borderWidth: 1.5, borderColor: '#1d1d1f', alignItems: 'center' },
+  webCard: { width: 140, margin: 8 },
+  imageContainer: { width: '100%', height: 55, backgroundColor: '#f5f5f7', borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+  productImage: { width: '100%', height: '100%', borderRadius: 8 },
+  cardContent: { width: '100%', alignItems: 'center' },
+  productName: { fontFamily: 'CairoBold', fontSize: 12, color: '#1d1d1f', marginBottom: 2 },
+  stockValue: { fontFamily: 'Cairo', fontSize: 10, color: '#86868b', marginBottom: 6 },
+  withdrawBtn: { width: '100%', height: 28, backgroundColor: '#1d1d1f', borderRadius: 6, flexDirection: 'row-reverse', justifyContent: 'center', alignItems: 'center', gap: 4 },
+  withdrawBtnDisabled: { backgroundColor: '#f5f5f7' },
+  withdrawBtnText: { fontFamily: 'CairoBold', fontSize: 11, color: '#fff' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: isWeb ? 'center' : 'flex-end', alignItems: isWeb ? 'center' : 'stretch' },
+  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
+  webModal: { width: 450, borderRadius: 24, alignSelf: 'center' },
+  modalHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  modalTitle: { fontFamily: 'CairoBold', fontSize: 16 },
+  modalProduct: { fontFamily: 'CairoBold', fontSize: 14, color: Colors.primary, marginBottom: 10, textAlign: 'center' },
+  inputGroup: { gap: 4, marginBottom: 10 },
+  label: { fontFamily: 'CairoBold', fontSize: 12, textAlign: 'right' },
+  input: { height: 40, backgroundColor: '#f5f5f7', borderRadius: 8, paddingHorizontal: 10, textAlign: 'right', fontFamily: 'Cairo' },
+  confirmBtn: { height: 44, backgroundColor: '#1d1d1f', borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
+  confirmText: { color: '#fff', fontFamily: 'CairoBold', fontSize: 14 },
+  emptyText: { textAlign: 'center', marginTop: 50, fontFamily: 'Cairo', color: '#86868b' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' }
 });

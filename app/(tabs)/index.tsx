@@ -1,98 +1,351 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Dimensions,
+  Platform,
+} from 'react-native';
+import { 
+  Package, 
+  AlertTriangle, 
+  TrendingUp, 
+  ChevronRight,
+  Bell,
+  LayoutGrid,
+  Zap
+} from 'lucide-react-native';
+import { Colors } from '@/constants/theme';
+import { getApiClient } from '@/services/api';
+import { router, useFocusEffect } from 'expo-router';
+import { useAuth } from '@/hooks/use-auth';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const { width } = Dimensions.get('window');
+const isWeb = Platform.OS === 'web';
 
-export default function HomeScreen() {
+interface Stats {
+  total_products: number;
+  out_of_stock: number;
+  inventory_health: number;
+  top_products: { name: string; withdrawals: number }[];
+}
+
+export default function UnifiedDashboardScreen() {
+  const { user } = useAuth();
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (user && user.role !== 'admin') {
+      router.replace('/explore');
+    }
+  }, [user]);
+
+  const fetchStats = React.useCallback(async () => {
+    try {
+      const api = await getApiClient();
+      const response = await api.get('/api/stats');
+      setStats(response.data as Stats);
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchStats();
+    }, [fetchStats])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchStats();
+  };
+
+  const StatCard = ({ title, value, icon: Icon, color, subValue }: any) => (
+    <View style={styles.statCard}>
+      <View style={[styles.iconContainer, { backgroundColor: color + '10' }]}>
+        <Icon size={16} color={color} />
+      </View>
+      <View style={styles.statInfo}>
+        <Text style={styles.statLabel}>{title}</Text>
+        <Text style={styles.statValue}>{value}</Text>
+        {subValue && <Text style={styles.statSubValue}>{subValue}</Text>}
+      </View>
+    </View>
+  );
+
+  if (loading && !refreshing) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color={Colors.primary} />
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.maxContainer}>
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <Zap size={16} color={Colors.primary} />
+            <Text style={styles.headerSubtitle}>إحصائيات النظام</Text>
+          </View>
+          <Text style={styles.headerTitle}>أداء المستودع اليوم.</Text>
+        </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <View style={styles.statsGrid}>
+          <StatCard 
+            title="المنتجات" 
+            value={stats?.total_products || 0} 
+            icon={Package} 
+            color="#1d1d1f"
+          />
+          <StatCard 
+            title="منتهية" 
+            value={stats?.out_of_stock || 0} 
+            icon={AlertTriangle} 
+            color={Colors.danger}
+          />
+          <StatCard 
+            title="الصحة" 
+            value={`${stats?.inventory_health || 0}%`} 
+            icon={TrendingUp} 
+            color={Colors.success}
+            subValue="مستوى التوفر"
+          />
+        </View>
+
+        <View style={styles.bottomSection}>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>الأكثر سحباً</Text>
+              <TrendingUp size={14} color="#1d1d1f" />
+            </View>
+            
+            <View style={styles.rankingList}>
+              {stats?.top_products.map((item, index) => (
+                <View key={index} style={styles.rankingItem}>
+                  <View style={styles.rankingInfo}>
+                    <Text style={styles.rankingName}>{item.name}</Text>
+                    <Text style={styles.rankingValue}>{item.withdrawals} سحب</Text>
+                  </View>
+                  <View style={[styles.rankBadge, index === 0 && styles.rankBadgeTop]}>
+                    <Text style={styles.rankText}>{index + 1}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.quickAction}
+            onPress={() => router.push('/explore')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.quickActionText}>
+              <Text style={styles.quickActionTitle}>سحب سريع</Text>
+              <Text style={styles.quickActionSubtitle}>الانتقال للمخزن</Text>
+            </View>
+            <LayoutGrid size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: '#fbfbfd',
   },
-  stepContainer: {
-    gap: 8,
+  scrollContent: {
+    paddingTop: 105,
+    paddingBottom: 80,
+    alignItems: 'center',
+  },
+  maxContainer: {
+    width: '100%',
+    paddingHorizontal: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#fbfbfd',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
+    marginBottom: 20,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  dashboardActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bellBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#d2d2d7', justifyContent: 'center', alignItems: 'center' },
+  webProfileHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', padding: 4, borderRadius: 12, borderWidth: 1, borderColor: '#f2f2f7' },
+  profileTextContainer: { alignItems: 'flex-end' },
+  profileNamePrefix: { fontFamily: 'Cairo', fontSize: 9, color: '#86868b' },
+  profileName: { fontFamily: 'CairoBold', fontSize: 11, color: '#1d1d1f' },
+  profileCircleSmall: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#1d1d1f', justifyContent: 'center', alignItems: 'center' },
+  headerTop: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+  },
+  headerSubtitle: {
+    fontFamily: 'CairoBold',
+    fontSize: 12,
+    color: '#86868b',
+  },
+  headerTitle: {
+    fontFamily: 'CairoBold',
+    fontSize: 18,
+    color: '#1d1d1f',
+    textAlign: 'right',
+  },
+  statsGrid: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  statCard: {
+    flex: 1,
+    minWidth: (width - 48) / 2,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#d2d2d7',
+  },
+  iconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  statInfo: {
+    alignItems: 'flex-end',
+  },
+  statLabel: {
+    fontFamily: 'Cairo',
+    fontSize: 11,
+    color: '#86868b',
+  },
+  statValue: {
+    fontFamily: 'CairoBold',
+    fontSize: 14,
+    color: '#1d1d1f',
+  },
+  statSubValue: {
+    fontFamily: 'Cairo',
+    fontSize: 9,
+    color: '#1d1d1f',
+    marginTop: 2,
+  },
+  bottomSection: {
+    gap: 12,
+    width: '100%',
+  },
+  section: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#d2d2d7',
+  },
+  sectionHeader: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontFamily: 'CairoBold',
+    fontSize: 14,
+    color: '#1d1d1f',
+  },
+  rankingList: {
+    gap: 10,
+  },
+  rankingItem: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 10,
+  },
+  rankingInfo: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  rankingName: {
+    fontFamily: 'CairoBold',
+    fontSize: 13,
+    color: '#1d1d1f',
+  },
+  rankingValue: {
+    fontFamily: 'Cairo',
+    fontSize: 11,
+    color: '#86868b',
+  },
+  rankBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#f5f5f7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d2d2d7',
+  },
+  rankBadgeTop: {
+    backgroundColor: '#1d1d1f',
+    borderColor: '#1d1d1f',
+  },
+  rankText: {
+    fontFamily: 'CairoBold',
+    fontSize: 11,
+    color: '#d2d2d7',
+  },
+  quickAction: {
+    backgroundColor: '#1d1d1f',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 80,
+  },
+  quickActionText: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  quickActionTitle: {
+    fontFamily: 'CairoBold',
+    fontSize: 16,
+    color: '#fff',
+  },
+  quickActionSubtitle: {
+    fontFamily: 'Cairo',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
   },
 });

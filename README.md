@@ -1,50 +1,42 @@
-# Welcome to your Expo app 👋
+# نظام المستودع الذكي (Smart Warehouse) 📦
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+تطبيق متكامل لإدارة المخزون والعهد الشخصية، مصمم ليعمل بسلاسة على أجهزة الجوال والمتصفح.
 
-## Get started
+## 🚀 المميزات الرئيسية
+- **إدارة المخزون:** إضافة، تعديل، وحذف المنتجات مع تتبع الكميات برسم بياني.
+- **نظام العهد الشخصية:** تسجيل عمليات السحب وإصدار مستندات استلام عهدة رسمية (PDF).
+- **نظام الصلاحيات:** فصل كامل بين صلاحيات (المدير، المشرف، والموظف).
+- **واجهة Monochrome فاخرة:** تصميم عصري يركز على سهولة الاستخدام والوضوح.
+- **العمل بدون إنترنت:** يعتمد النظام على قاعدة بيانات محلية (SQLite) لضمان السرعة والعمل في المواقع البعيدة.
 
-1. Install dependencies
+## 🛠 التكنولوجيا المستخدمة
+- **Framework:** React Native / Expo
+- **Routing:** Expo Router
+- **Database:** SQLite (SQL.js for Web / Expo SQLite for Mobile)
+- **Styling:** Vanilla CSS & React Native StyleSheet
+- **Icons:** Lucide React
 
+## 📦 التثبيت والتشغيل
+1. قم بتحميل المستودع:
+   ```bash
+   git clone [رابط-المستودع]
+   ```
+2. تثبيت المكتبات:
    ```bash
    npm install
    ```
-
-2. Start the app
-
+3. تشغيل التطبيق:
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+## 🔒 بيانات الدخول الافتراضية
+- **اسم المستخدم:** `admin`
+- **كلمة المرور:** `admin123`
+- **سؤال الأمان:** إجابة السؤال (العنزي)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 📄 الترخيص
+هذا المشروع متاح للاستخدام العام والتطوير.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+تم التطوير بواسطة Antigravity AI Coding Assistant 🚀

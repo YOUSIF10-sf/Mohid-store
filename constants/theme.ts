@@ -1,53 +1,39 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+import { StyleSheet } from 'react-native';
 
 export const Colors = {
+  primary: '#1d1d1f', // Elegant Black
+  primaryLight: 'rgba(29, 29, 31, 0.1)',
+  danger: '#1d1d1f', // Monochrome Danger
+  success: '#1d1d1f', // Monochrome Success
+  warning: '#86868b',
+  
+  // Light Theme (Premium Monochrome)
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    background: '#ffffff',
+    panel: '#ffffff',
+    panelSecondary: '#f5f5f7',
+    text: '#1d1d1f',
+    textMuted: '#86868b',
+    border: '#1d1d1f', // Black borders for luxury feel
   },
+  
+  // Dark Theme
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    background: '#000000',
+    panel: '#1c1c1e',
+    panelSecondary: '#2c2c2e',
+    text: '#ffffff',
+    textMuted: '#8e8e93',
+    border: '#38383a',
   },
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
+export const GlassStyles = (isDark = true) => ({
+  panel: {
+    backgroundColor: isDark ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.7)',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
   },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
+  blurIntensity: isDark ? 80 : 50,
 });
