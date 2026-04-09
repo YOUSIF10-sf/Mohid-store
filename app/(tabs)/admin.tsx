@@ -1,5 +1,5 @@
 import { Colors } from '@/constants/theme';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { useAuth } from '@/hooks/use-auth';
 import { ChevronRight, History as HistoryIcon, Package, Shield, Users } from 'lucide-react-native';
 import React, { useEffect } from 'react';
@@ -17,7 +17,6 @@ const isWeb = Platform.OS === 'web';
 export default function AdminHubScreen() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const isSupervisor = user?.role === 'supervisor';
 
   useEffect(() => {
     if (user && user.role !== 'admin' && user.role !== 'supervisor') {

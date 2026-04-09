@@ -10,10 +10,8 @@ import {
   Image,
 } from 'react-native';
 import { router } from 'expo-router';
-import { ShoppingBag, ChevronRight, Lock, User, ShieldQuestion, X } from 'lucide-react-native';
-import { Colors } from '@/constants/theme';
+import { ChevronRight, Lock, User, X } from 'lucide-react-native';
 import { getApiClient } from '@/services/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Modal } from 'react-native';
 
 const { width, height } = Dimensions.get('window');

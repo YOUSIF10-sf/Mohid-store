@@ -2,15 +2,13 @@ import { router } from 'expo-router';
 import { useAuth } from '@/hooks/use-auth';
 import { Colors } from '@/constants/theme';
 import { getApiClient } from '@/services/api';
-import { Download, Edit2, Save, Search, X, Printer } from 'lucide-react-native';
+import { Download, Edit2, Search, X, Printer } from 'lucide-react-native';
 import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Platform,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -36,10 +34,8 @@ interface Log {
 export default function ProfessionalWithdrawalSpreadsheet() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<Log>>({});
   const [savingEdit, setSavingEdit] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -57,7 +53,6 @@ export default function ProfessionalWithdrawalSpreadsheet() {
       setError('فشل تحميل السجلات.');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
@@ -72,11 +67,6 @@ export default function ProfessionalWithdrawalSpreadsheet() {
   useEffect(() => {
     fetchLogs();
   }, []);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchLogs();
-  };
 
   const startEdit = (item: Log) => {
     setSelectedLog(item);
@@ -472,6 +462,7 @@ export default function ProfessionalWithdrawalSpreadsheet() {
               </TouchableOpacity>
             )}
           </View>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -693,6 +684,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Cairo' 
   },
   clearFilter: { fontFamily: 'CairoBold', fontSize: 12, color: '#d70015', marginRight: 10 }
+  ,
+  errorText: { marginTop: 8, fontFamily: 'Cairo', fontSize: 12, color: '#d70015', textAlign: 'right' }
 });
 
 const webInputStyle = {

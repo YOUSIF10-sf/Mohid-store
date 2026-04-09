@@ -30,6 +30,18 @@
    npx expo start
    ```
 
+## ▲ النشر على Vercel (Web)
+1. بناء نسخة الويب محليًا (اختياري للتحقق):
+   ```bash
+   npm run build:web
+   ```
+2. ارفع المشروع إلى GitHub.
+3. في Vercel:
+   - Framework Preset: **Other**
+   - Build Command: `npm run build:web`
+   - Output Directory: `dist`
+4. أضف أي متغيرات بيئة مطلوبة في إعدادات المشروع على Vercel قبل النشر.
+
 ## 🔒 بيانات الدخول الافتراضية
 - **اسم المستخدم:** `admin`
 - **كلمة المرور:** `admin123`
