@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/hooks/use-auth';
 import { Colors } from '@/constants/theme';
 import { getApiClient } from '@/services/api';
-import { Download, Edit2, Search, X, Printer } from 'lucide-react-native';
+import { Download, Edit2, Search, X, Printer, Trash2 } from 'lucide-react-native';
 import * as Print from 'expo-print';
 import React, { useEffect, useState } from 'react';
 import {
@@ -38,6 +38,7 @@ export default function ProfessionalWithdrawalSpreadsheet() {
   const [error, setError] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Log>>({});
   const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedLog, setSelectedLog] = useState<Log | null>(null);
   const [startDate, setStartDate] = useState('');
@@ -88,6 +89,36 @@ export default function ProfessionalWithdrawalSpreadsheet() {
       setError('فشل الحفظ.');
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  const deleteLog = async (item: Log) => {
+    const confirmed = isWeb
+      ? window.confirm('هل تريد حذف عملية السحب هذه؟ سيتم إرجاع الكمية إلى المخزون.')
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'تأكيد الحذف',
+            'هل تريد حذف عملية السحب هذه؟ سيتم إرجاع الكمية إلى المخزون.',
+            [
+              { text: 'إلغاء', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'حذف', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+    if (!confirmed) return;
+
+    setDeletingId(item.id);
+    try {
+      const api = await getApiClient();
+      await api.delete(`/api/logs/${item.id}`);
+      await fetchLogs();
+      if (isWeb) alert('تم حذف العملية وإرجاع الكمية للمخزون');
+      else Alert.alert('نجاح', 'تم حذف العملية وإرجاع الكمية للمخزون');
+    } catch (err) {
+      setError('فشل حذف العملية.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -326,6 +357,7 @@ export default function ProfessionalWithdrawalSpreadsheet() {
 
   const TableHeader = () => (
     <View style={styles.tableHeader}>
+      <Text style={[styles.columnHeader, { flex: 0.4 }]}>حذف</Text>
       <Text style={[styles.columnHeader, { flex: 0.4 }]}>-</Text>
       <Text style={[styles.columnHeader, { flex: 0.4 }]}>طباعة</Text>
       <Text style={[styles.columnHeader, { flex: 1.5 }]}>السبب</Text>
@@ -372,12 +404,39 @@ export default function ProfessionalWithdrawalSpreadsheet() {
             <Edit2 size={12} color="#86868b" />
             <Text style={styles.editBtnText}>تعديل السجل</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => deleteLog(item)}
+            style={styles.mobileDeleteBtn}
+            disabled={deletingId === item.id}
+          >
+            {deletingId === item.id ? (
+              <ActivityIndicator size="small" color="#d70015" />
+            ) : (
+              <>
+                <Trash2 size={12} color="#d70015" />
+                <Text style={styles.deleteBtnText}>حذف السجل</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       );
     }
 
     return (
       <View style={styles.tableRow}>
+        <View style={[styles.cell, { flex: 0.4 }]}>
+          <TouchableOpacity
+            onPress={() => deleteLog(item)}
+            style={styles.deleteBtn}
+            disabled={deletingId === item.id}
+          >
+            {deletingId === item.id ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Trash2 size={12} color="#fff" />
+            )}
+          </TouchableOpacity>
+        </View>
         <View style={[styles.cell, { flex: 0.4 }]}>
           <TouchableOpacity onPress={() => startEdit(item)} style={styles.editBtn}>
             <Edit2 size={12} color="#fff" />
@@ -626,6 +685,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#fbfbfd',
   },
+  mobileDeleteBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 4,
+  },
   printBtn: {
     width: 30,
     height: 30,
@@ -639,12 +705,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#86868b',
   },
+  deleteBtnText: {
+    fontFamily: 'CairoBold',
+    fontSize: 10,
+    color: '#d70015',
+  },
   tableRow: { flexDirection: 'row-reverse', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f5f5f7', alignItems: 'center' },
   cell: { flex: 1, alignItems: 'center' },
   cellTextBold: { fontFamily: 'CairoBold', fontSize: 12, color: '#1d1d1f' },
   cellTextSmaller: { fontFamily: 'Cairo', fontSize: 10, color: '#86868b', textAlign: 'center', flex: 1 },
   cellTextSmall: { fontFamily: 'Cairo', fontSize: 11, color: '#1d1d1f' },
   editBtn: { backgroundColor: '#1d1d1f', padding: 6, borderRadius: 6 },
+  deleteBtn: { backgroundColor: '#d70015', padding: 6, borderRadius: 6 },
   editingRow: { backgroundColor: '#f5f5f7' },
   emptyText: { padding: 20, textAlign: 'center', fontFamily: 'Cairo', color: '#86868b' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },

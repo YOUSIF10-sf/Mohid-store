@@ -242,10 +242,32 @@ export const StorageService = {
   },
 
   deleteLog: async (id: number) => {
-    await db.execute({
-      sql: 'DELETE FROM logs WHERE id = ?',
+    const logResult = await db.execute({
+      sql: 'SELECT id, product_name, quantity FROM logs WHERE id = ?',
       args: [id],
     });
+
+    if (logResult.rows.length === 0) {
+      throw new Error('عملية السحب غير موجودة');
+    }
+
+    const log = logResult.rows[0] as unknown as { product_name: string; quantity: number };
+    const quantity = Number(log.quantity || 0);
+
+    // Keep inventory consistent: restore withdrawn quantity before deleting the log.
+    await db.batch(
+      [
+        {
+          sql: 'UPDATE products SET current_quantity = current_quantity + ? WHERE name = ?',
+          args: [quantity, log.product_name],
+        },
+        {
+          sql: 'DELETE FROM logs WHERE id = ?',
+          args: [id],
+        },
+      ],
+      'write'
+    );
   },
 
   // Users
