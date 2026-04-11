@@ -284,26 +284,28 @@ export default function UnifiedHistoryScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerSubtitle}>السجل الشخصي</Text>
-        <Text style={styles.headerTitle}>تتبع مسحوباتك.{'\n'}بكل شفافية.</Text>
-      </View>
+      <View style={styles.maxContainer}>
+        <View style={styles.header}>
+          <Text style={styles.headerSubtitle}>السجل الشخصي</Text>
+          <Text style={styles.headerTitle}>تتبع مسحوباتك.{'\n'}بكل شفافية.</Text>
+        </View>
 
-      <FlatList
-        data={logs}
-        renderItem={renderLogItem}
-        keyExtractor={item => item.id.toString()}
-        contentContainerStyle={styles.listContent}
-        numColumns={isWeb && width > 800 ? 3 : 1}
-        key={isWeb && width > 800 ? 'web-grid' : 'mobile-list'}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Info size={40} color="#86868b" />
-            <Text style={styles.emptyText}>لا توجد سحوبات مسجلة بعد</Text>
-          </View>
-        }
-      />
+        <FlatList
+          data={logs}
+          renderItem={renderLogItem}
+          keyExtractor={item => item.id.toString()}
+          contentContainerStyle={styles.listContent}
+          numColumns={isWeb && width > 800 ? 3 : 1}
+          key={isWeb && width > 800 ? 'web-grid' : 'mobile-list'}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Info size={40} color="#86868b" />
+              <Text style={styles.emptyText}>لا توجد سحوبات مسجلة بعد</Text>
+            </View>
+          }
+        />
+      </View>
     </View>
   );
 }
@@ -319,9 +321,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  maxContainer: {
+    flex: 1,
+    width: '100%',
+    maxWidth: isWeb ? 1100 : '100%',
+    alignSelf: 'center',
+  },
   header: {
-    paddingHorizontal: isWeb ? (width > 1200 ? width * 0.1 : 40) : 24,
-    paddingTop: isWeb ? 60 : 105,
+    paddingHorizontal: isWeb ? 40 : 24,
+    paddingTop: isWeb ? 60 : 135,
     paddingBottom: 30,
     alignItems: 'flex-end',
   },
@@ -339,7 +347,7 @@ const styles = StyleSheet.create({
     lineHeight: isWeb ? 48 : 42,
   },
   listContent: {
-    paddingHorizontal: isWeb ? (width > 1200 ? width * 0.1 : 30) : 20,
+    paddingHorizontal: isWeb ? 30 : 20,
     paddingBottom: 120,
   },
   logCard: {
@@ -349,13 +357,11 @@ const styles = StyleSheet.create({
     padding: 24,
     marginBottom: 20,
     marginHorizontal: isWeb ? 10 : 0,
-    borderWidth: 1,
-    borderColor: '#d2d2d7',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 15,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 12,
   },
   webCard: {
     maxWidth: '33%',

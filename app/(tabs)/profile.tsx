@@ -21,6 +21,15 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { Colors } from '@/constants/theme';
 import { ProfileMenu } from '@/components/profile-menu';
+import { 
+  Modal, 
+  TextInput, 
+  ActivityIndicator, 
+  Alert,
+  KeyboardAvoidingView
+} from 'react-native';
+import { getApiClient } from '@/services/api';
+import { Lock, X, ChevronRight } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -105,7 +114,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: isWeb ? (width > 1200 ? width * 0.15 : 40) : 24,
-    paddingTop: isWeb ? 60 : 105,
+    paddingTop: isWeb ? 60 : 135,
     paddingBottom: 120,
   },
   header: {

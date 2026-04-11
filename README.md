@@ -1,54 +1,52 @@
-# نظام المستودع الذكي (Smart Warehouse) 📦
+# Smart Warehouse (M-Store) - Premium ERP System
 
-تطبيق متكامل لإدارة المخزون والعهد الشخصية، مصمم ليعمل بسلاسة على أجهزة الجوال والمتصفح.
+![Version](https://img.shields.io/badge/version-2.1.0-blue)
+![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-black)
+![License](https://img.shields.io/badge/License-Proprietary-red)
 
-## 🚀 المميزات الرئيسية
-- **إدارة المخزون:** إضافة، تعديل، وحذف المنتجات مع تتبع الكميات برسم بياني.
-- **نظام العهد الشخصية:** تسجيل عمليات السحب وإصدار مستندات استلام عهدة رسمية (PDF).
-- **نظام الصلاحيات:** فصل كامل بين صلاحيات (المدير، المشرف، والموظف).
-- **واجهة Monochrome فاخرة:** تصميم عصري يركز على سهولة الاستخدام والوضوح.
-- **العمل بدون إنترنت:** يعتمد النظام على قاعدة بيانات محلية (SQLite) لضمان السرعة والعمل في المواقع البعيدة.
+A sophisticated, cross-platform warehouse management system built with **React Native (Expo)**. Designed for speed, security, and a premium user experience across Web and Mobile devices.
 
-## 🛠 التكنولوجيا المستخدمة
-- **Framework:** React Native / Expo
-- **Routing:** Expo Router
-- **Database:** SQLite (SQL.js for Web / Expo SQLite for Mobile)
-- **Styling:** Vanilla CSS & React Native StyleSheet
-- **Icons:** Lucide React
+## ✨ Key Features
 
-## 📦 التثبيت والتشغيل
-1. قم بتحميل المستودع:
-   ```bash
-   git clone [رابط-المستودع]
-   ```
-2. تثبيت المكتبات:
+- 📱 **Unified Experience**: Seamlessly switch between Web and Mobile with synchronized state and performance.
+- 🔐 **Hardened Security**: SHA-256 password hashing for robust credential protection.
+- ⚡ **Instant-Load Performance**: Virtualized lists and module-level caching for instantaneous feedback.
+- 📊 **Dynamic Analytics**: Real-time charts for stock levels, replenishment needs, and withdrawal trends.
+- 🖨️ **Professional Receipts**: Built-in PDF receipt generation for equipment withdrawals (pledge-based).
+- ☁️ **Native Aesthetics**: Apple-inspired "Floating" UI with soft shadows and borderless modern design.
+
+## 🛠️ Technology Stack
+
+- **Framework**: React Native / Expo Router (v3+)
+- **Styling**: Vanilla Stylesheet with dynamic platform checks.
+- **Data Engine**: SQLite (Expo-SQLite) / Unified Storage Service.
+- **Visuals**: Lucide Icons, Expo-Image, React Native Chart Kit.
+- **Security**: Robust pure-JS SHA-256 implementation.
+
+## 🚀 Getting Started
+
+1. **Install Dependencies**:
    ```bash
    npm install
    ```
-3. تشغيل التطبيق:
+
+2. **Run on Web**:
+   ```bash
+   npm run web
+   ```
+
+3. **Run on Mobile (Development)**:
    ```bash
    npx expo start
    ```
 
-## ▲ النشر على Vercel (Web)
-1. بناء نسخة الويب محليًا (اختياري للتحقق):
-   ```bash
-   npm run build:web
-   ```
-2. ارفع المشروع إلى GitHub.
-3. في Vercel:
-   - Framework Preset: **Other**
-   - Build Command: `npm run build:web`
-   - Output Directory: `dist`
-4. أضف أي متغيرات بيئة مطلوبة في إعدادات المشروع على Vercel قبل النشر.
+## 📲 Over-the-Air (OTA) Updates
 
-## 🔒 بيانات الدخول الافتراضية
-- **اسم المستخدم:** `admin`
-- **كلمة المرور:** `admin123`
-- **سؤال الأمان:** إجابة السؤال (العنزي)
+This project is configured to work with **EAS Update**, allowing you to push critical logic or UI fixes directly to user devices without needing to re-submit to App Stores.
 
-## 📄 الترخيص
-هذا المشروع متاح للاستخدام العام والتطوير.
+```bash
+eas update --branch production --message "Quick UI Update"
+```
 
 ---
-تم التطوير بواسطة Antigravity AI Coding Assistant 🚀
+*Developed for Smart Warehouse Enterprise Solutions.*

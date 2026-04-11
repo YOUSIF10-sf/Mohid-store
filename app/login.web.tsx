@@ -1,26 +1,29 @@
+import { getApiClient } from '@/services/api';
+import { router } from 'expo-router';
+import { ChevronRight, Lock, User, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  StyleSheet,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   ActivityIndicator,
   Dimensions,
   Image,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { router } from 'expo-router';
-import { ChevronRight, Lock, User, X } from 'lucide-react-native';
-import { getApiClient } from '@/services/api';
-import { Modal } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
+const isWeb = Platform.OS === 'web';
 
 export default function WebLoginScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [focusedInput, setFocusedInput] = useState<string | null>(null);
 
   // Recovery State
   const [showHelp, setShowHelp] = useState(false);
@@ -29,25 +32,40 @@ export default function WebLoginScreen() {
   const [isRecovering, setIsRecovering] = useState(false);
 
   const handleLogin = async () => {
-    if (!username || !password) {
+    const cleanUsername = username.trim();
+    const cleanPassword = password.trim();
+
+    if (!cleanUsername || !cleanPassword) {
       setError('يرجى إدخال اسم المستخدم وكلمة المرور');
       return;
     }
+
+    if (cleanPassword.length < 3) {
+      setError('كلمة المرور قصيرة جداً');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
       const api = await getApiClient();
-      await api.post('/api/login', { username, password });
+      await api.post('/api/login', {
+        username: cleanUsername,
+        password: cleanPassword
+      });
       router.replace('/');
     } catch (err: any) {
-      setError(err.message || 'فشل تسجيل الدخول');
+      setError(err.message || 'فشل تسجيل الدخول: بيانات غير صحيحة');
     } finally {
       setLoading(false);
     }
   };
 
   const handleRecover = async () => {
-    if (!recoveryUser || !recoveryAnswer) {
+    const cleanUser = recoveryUser.trim();
+    const cleanAnswer = recoveryAnswer.trim();
+
+    if (!cleanUser || !cleanAnswer) {
       setError('يرجى إكمال بيانات الاستعادة');
       return;
     }
@@ -55,8 +73,12 @@ export default function WebLoginScreen() {
     setError('');
     try {
       const api = await getApiClient();
-      await api.post('/api/recover', { username: recoveryUser, answer: recoveryAnswer });
+      await api.post('/api/recover', {
+        username: cleanUser,
+        answer: cleanAnswer
+      });
       setShowHelp(false);
+      // We don't automatically login for security, we just might reset or give access
       router.replace('/');
     } catch (err: any) {
       setError('إجابة سؤال الأمان أو اسم المستخدم غير صحيح');
@@ -67,70 +89,104 @@ export default function WebLoginScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Background Graphic (Apple Style) */}
-      <View style={styles.background}>
-        <View style={styles.gradientCircle} />
+      {/* Left side: Background Image */}
+      <View style={styles.imageSection}>
+        <Image
+          source={require('../assets/images/BC.jpg')}
+          style={styles.backgroundImage}
+          resizeMode="cover"
+        />
+        <View style={styles.imageOverlay}>
+          <View style={styles.brandBadge}>
+            <Image
+              source={require('../assets/images/smart-logo.png')}
+              style={styles.smallLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.brandName}>Smart Warehouse</Text>
+          </View>
+          <View style={styles.heroContent}>
+            <Text style={styles.heroTitle}>كفاءة عالية.{'\n'}في إدارة المخزون.</Text>
+            <Text style={styles.heroSubtitle}>نظام متكامل لإدارة العمليات اليومية بكل سهولة واحترافية.</Text>
+          </View>
+        </View>
       </View>
 
-      <View style={styles.loginCard}>
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-             <Image 
-               source={require('../assets/images/smart-logo.png')} 
-               style={styles.logo} 
-               resizeMode="contain" 
-             />
-          </View>
-          <Text style={styles.title}>تسجيل الدخول</Text>
-          <Text style={styles.subtitle}>أهلاً بك في نظام المخزن الذكي</Text>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>اسم المستخدم</Text>
-            <View style={styles.inputWrapper}>
-               <User size={20} color="#86868b" />
-               <TextInput
-                 style={styles.input}
-                 value={username}
-                 onChangeText={setUsername}
-                 autoCapitalize="none"
-                 placeholder="username"
-               />
+      {/* Right side: Login Form */}
+      <View style={styles.formSection}>
+        <View style={styles.loginCard}>
+          <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../assets/images/smart-logo.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
             </View>
+            <Text style={styles.title}>تسجيل الدخول</Text>
+            <Text style={styles.subtitle}>أهلاً بك، يرجى إدخال بياناتك للمتابعة.</Text>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>كلمة المرور</Text>
-            <View style={styles.inputWrapper}>
-               <Lock size={20} color="#86868b" />
-               <TextInput
-                 style={styles.input}
-                 value={password}
-                 onChangeText={setPassword}
-                 secureTextEntry
-                 placeholder="••••••••"
-               />
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>اسم المستخدم</Text>
+              <View style={[styles.inputWrapper, focusedInput === 'user' && styles.focusedInput]}>
+                <User size={20} color={focusedInput === 'user' ? '#1d1d1f' : '#86868b'} />
+                <TextInput
+                  style={[
+                    styles.input,
+                    isWeb && { outlineStyle: 'none' } as any
+                  ]}
+                  value={username}
+                  onChangeText={setUsername}
+                  onFocus={() => setFocusedInput('user')}
+                  onBlur={() => setFocusedInput(null)}
+                  autoCapitalize="none"
+                  placeholder="الاسم"
+                />
+              </View>
             </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>كلمة المرور</Text>
+              <View style={[styles.inputWrapper, focusedInput === 'pass' && styles.focusedInput]}>
+                <Lock size={20} color={focusedInput === 'pass' ? '#1d1d1f' : '#86868b'} />
+                <TextInput
+                  style={[
+                    styles.input,
+                    isWeb && { outlineStyle: 'none' } as any
+                  ]}
+                  value={password}
+                  onChangeText={setPassword}
+                  onFocus={() => setFocusedInput('pass')}
+                  onBlur={() => setFocusedInput(null)}
+                  secureTextEntry
+                  placeholder="••••••••"
+                />
+              </View>
+            </View>
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : (
+                <>
+                  <Text style={styles.loginBtnText}>دخول للنظام</Text>
+                  <ChevronRight size={20} color="#fff" />
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.forgotBtn} onPress={() => setShowHelp(true)}>
+              <Text style={styles.forgotText}>نسيت كلمة المرور؟</Text>
+            </TouchableOpacity>
           </View>
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-          <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : (
-              <>
-                <Text style={styles.loginBtnText}>دخول للنظام</Text>
-                <ChevronRight size={20} color="#fff" />
-              </>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.forgotBtn} onPress={() => setShowHelp(true)}>
-            <Text style={styles.forgotText}>هل واجهت مشكلة في الدخول؟</Text>
-          </TouchableOpacity>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Enterprise Edition v2.0</Text>
+            <Text style={styles.footerText}>© 2026 Smart Warehouse Inc.</Text>
+          </View>
         </View>
-
-        <Text style={styles.footerText}>Smart Warehouse Enterprise v2.0</Text>
       </View>
 
       {/* Recovery Modal */}
@@ -143,31 +199,31 @@ export default function WebLoginScreen() {
                 <X size={24} color="#1d1d1f" />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.recoveryForm}>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>اسم المستخدم</Text>
-                <TextInput 
-                  style={styles.recoveryInput} 
-                  value={recoveryUser} 
-                  onChangeText={setRecoveryUser} 
-                  placeholder="USERNAME" 
-                  autoCapitalize="none" 
+                <TextInput
+                  style={styles.recoveryInput}
+                  value={recoveryUser}
+                  onChangeText={setRecoveryUser}
+                  placeholder="USERNAME"
+                  autoCapitalize="none"
                 />
               </View>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>سؤال الأمان: ما هو اسم أمك؟</Text>
-                <TextInput 
-                  style={styles.recoveryInput} 
-                  value={recoveryAnswer} 
-                  onChangeText={setRecoveryAnswer} 
-                  placeholder="الإجابة" 
+                <TextInput
+                  style={styles.recoveryInput}
+                  value={recoveryAnswer}
+                  onChangeText={setRecoveryAnswer}
+                  placeholder="الإجابة"
                 />
               </View>
 
-              <TouchableOpacity 
-                style={[styles.loginBtn, { marginTop: 20 }]} 
-                onPress={handleRecover} 
+              <TouchableOpacity
+                style={[styles.loginBtn, { marginTop: 20 }]}
+                onPress={handleRecover}
                 disabled={isRecovering}
               >
                 {isRecovering ? (
@@ -187,107 +243,144 @@ export default function WebLoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fbfbfd',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#fff',
+    flexDirection: 'row',
   },
-  background: {
-    position: 'absolute',
+  imageSection: {
+    flex: 1.3, // Background takes more space
+    backgroundColor: '#000',
+    position: 'relative',
+    display: isWeb && width > 900 ? 'flex' : 'none', // Hide on small screens/mobile web
+  },
+  backgroundImage: {
     width: '100%',
     height: '100%',
-    overflow: 'hidden',
-    zIndex: -1,
+    opacity: 0.7,
   },
-  gradientCircle: {
+  imageOverlay: {
     position: 'absolute',
-    top: -height * 0.2,
-    right: -width * 0.1,
-    width: width * 0.6,
-    height: width * 0.6,
-    borderRadius: width * 0.3,
-    backgroundColor: 'rgba(0, 113, 227, 0.05)',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    padding: 60,
+    justifyContent: 'space-between',
+  },
+  brandBadge: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 12,
+  },
+  smallLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+  },
+  brandName: {
+    color: '#fff',
+    fontFamily: 'CairoBold',
+    fontSize: 18,
+    letterSpacing: 0.5,
+  },
+  heroContent: {
+    maxWidth: 500,
+    alignItems: 'flex-start',
+  },
+  heroTitle: {
+    color: '#fff',
+    fontFamily: 'CairoBold',
+    fontSize: 48,
+    lineHeight: 60,
+    textAlign: 'left',
+  },
+  heroSubtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontFamily: 'Cairo',
+    fontSize: 18,
+    marginTop: 20,
+    textAlign: 'left',
+    lineHeight: 28,
+  },
+  formSection: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#ffffff',
   },
   loginCard: {
-    backgroundColor: '#fff',
-    width: 440,
-    padding: 60,
-    borderRadius: 36,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 30,
-    borderWidth: 1,
-    borderColor: '#d2d2d7',
+    width: '100%',
+    maxWidth: 420,
+    paddingHorizontal: 10,
   },
   header: {
     alignItems: 'center',
     marginBottom: 40,
   },
   logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: '#fff',
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#fbfbfd',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
-    overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#f2f2f7',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
   },
   logo: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
+    width: 48,
+    height: 48,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontFamily: 'CairoBold',
     color: '#1d1d1f',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'Cairo',
     color: '#86868b',
     marginTop: 8,
+    textAlign: 'center',
   },
   form: {
-    gap: 24,
+    gap: 20,
   },
   inputGroup: {
-    gap: 10,
+    gap: 8,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'CairoBold',
     color: '#1d1d1f',
     textAlign: 'right',
+    marginRight: 6,
+    marginBottom: 4,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: '#f5f5f7',
+    borderRadius: 14,
     paddingHorizontal: 16,
-    height: 60,
-    borderWidth: 1,
-    borderColor: '#e5e5e7',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 10,
+    height: 56,
+    borderWidth: 1.5,
+    borderColor: 'transparent', // Smooth border appearance
+  },
+  focusedInput: {
+    borderColor: '#1d1d1f', // Dark clean border on focus
+    backgroundColor: '#fff', // White background when typing
   },
   input: {
     flex: 1,
     fontFamily: 'Cairo',
-    fontSize: 16,
+    fontSize: 15,
     color: '#1d1d1f',
     textAlign: 'right',
     marginLeft: 12,
+    borderWidth: 0, // Remove default browser border
   },
   errorText: {
     color: '#d70015',
@@ -297,77 +390,72 @@ const styles = StyleSheet.create({
   },
   loginBtn: {
     backgroundColor: '#1d1d1f',
-    height: 60,
-    borderRadius: 20,
+    height: 54,
+    borderRadius: 14,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
     marginTop: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
   },
   loginBtnText: {
     color: '#fff',
     fontFamily: 'CairoBold',
-    fontSize: 18,
-  },
-  footerText: {
-    marginTop: 40,
-    textAlign: 'center',
-    fontFamily: 'Cairo',
-    fontSize: 12,
-    color: '#86868b',
+    fontSize: 16,
   },
   forgotBtn: {
-    marginTop: 15,
+    marginTop: 8,
     alignItems: 'center',
   },
   forgotText: {
     color: '#0071e3',
     fontFamily: 'CairoBold',
-    fontSize: 14,
-    textDecorationLine: 'underline',
+    fontSize: 13,
+  },
+  footer: {
+    marginTop: 60,
+    alignItems: 'center',
+    gap: 4,
+  },
+  footerText: {
+    fontFamily: 'Cairo',
+    fontSize: 11,
+    color: '#86868b',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
     backgroundColor: '#fff',
     width: 400,
-    padding: 40,
-    borderRadius: 28,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
+    padding: 30,
+    borderRadius: 24,
   },
   modalHeader: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 25,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: 'CairoBold',
     color: '#1d1d1f',
   },
   recoveryForm: {
-    gap: 20,
+    gap: 16,
   },
   recoveryInput: {
-    height: 54,
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    height: 50,
+    backgroundColor: '#fbfbfd',
+    borderRadius: 12,
     paddingHorizontal: 16,
     textAlign: 'right',
     fontFamily: 'Cairo',
-    borderWidth: 1.5,
-    borderColor: '#f2f2f7',
+    borderWidth: 1,
+    borderColor: '#e5e5e7',
   },
 });

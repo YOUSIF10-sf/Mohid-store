@@ -23,15 +23,20 @@ interface ProfileMenuProps {
   direction?: 'up' | 'down';
 }
 
-export function ProfileMenu({ userName, isWeb, direction = 'down' }: ProfileMenuProps) {
+const isWeb = Platform.OS === 'web';
+
+export function ProfileMenu({ userName, direction = 'down' }: ProfileMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [passModalVisible, setPassModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const [fullName, setFullName] = useState(userName);
   const [username, setUsername] = useState('');
   const [securityAnswer, setSecurityAnswer] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
   const { user, logout, refreshUser } = useAuth();
 
   useEffect(() => {
@@ -61,16 +66,45 @@ export function ProfileMenu({ userName, isWeb, direction = 'down' }: ProfileMenu
   };
 
   const handleChangePassword = async () => {
-    if (!newPassword) return;
+    const cleanOld = oldPassword.trim();
+    const cleanNew = newPassword.trim();
+    const cleanConfirm = confirmPassword.trim();
+
+    if (!cleanOld || !cleanNew || !cleanConfirm) {
+      const msg = 'يرجى ملء جميع الحقول المطلوبة';
+      Platform.OS === 'web' ? alert(msg) : Alert.alert('خطأ', msg);
+      return;
+    }
+
+    if (cleanNew !== cleanConfirm) {
+      const msg = 'كلمة المرور الجديدة غير متطابقة';
+      Platform.OS === 'web' ? alert(msg) : Alert.alert('تنبيه', msg);
+      return;
+    }
+
+    if (cleanNew.length < 4) {
+      const msg = 'كلمة المرور الجديدة قصيرة جداً';
+      Platform.OS === 'web' ? alert(msg) : Alert.alert('تنبيه', msg);
+      return;
+    }
+
     setIsSaving(true);
     try {
       const api = await getApiClient();
-      await api.post('/api/user/password', { password: newPassword });
+      // Using a more standard endpoint and payload for security
+      await api.post('/api/users/change-password', { 
+        oldPassword: cleanOld, 
+        newPassword: cleanNew 
+      });
       setPassModalVisible(false);
+      setOldPassword('');
       setNewPassword('');
-      Alert.alert('نجاح', 'تم تغيير كلمة المرور بنجاح');
-    } catch (error) {
-      Alert.alert('خطأ', 'فشل تغيير كلمة المرور');
+      setConfirmPassword('');
+      const successMsg = 'تم تحديث كلمة المرور بنجاح';
+      Platform.OS === 'web' ? alert(successMsg) : Alert.alert('نجاح', successMsg);
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || 'تعذر تغيير كلمة المرور، يرجى التأكد من الكلمة الحالية';
+      Platform.OS === 'web' ? alert(errorMsg) : Alert.alert('خطأ', errorMsg);
     } finally {
       setIsSaving(false);
     }
@@ -133,7 +167,7 @@ export function ProfileMenu({ userName, isWeb, direction = 'down' }: ProfileMenu
       {/* Change Password Modal */}
       <Modal visible={passModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isWeb && { width: 400 }]}>
+          <View style={[styles.modalContent, isWeb && { width: 300, padding: 15 }]}>
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setPassModalVisible(false)}>
                 <X size={24} color="#1d1d1f" />
@@ -142,16 +176,50 @@ export function ProfileMenu({ userName, isWeb, direction = 'down' }: ProfileMenu
             </View>
 
             <View style={styles.form}>
-              <TextInput
-                style={styles.input}
-                placeholder="كلمة المرور الجديدة"
-                placeholderTextColor="#86868b"
-                secureTextEntry
-                value={newPassword}
-                onChangeText={setNewPassword}
-              />
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>كلمة المرور الحالية</Text>
+                <TextInput
+                  style={[styles.input, focusedInput === 'old' && styles.inputFocused]}
+                  placeholder="••••••••"
+                  placeholderTextColor="#86868b"
+                  secureTextEntry
+                  value={oldPassword}
+                  onChangeText={setOldPassword}
+                  onFocus={() => setFocusedInput('old')}
+                  onBlur={() => setFocusedInput(null)}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>كلمة المرور الجديدة</Text>
+                <TextInput
+                  style={[styles.input, focusedInput === 'new' && styles.inputFocused]}
+                  placeholder="••••••••"
+                  placeholderTextColor="#86868b"
+                  secureTextEntry
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  onFocus={() => setFocusedInput('new')}
+                  onBlur={() => setFocusedInput(null)}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>تأكيد كلمة المرور الجديدة</Text>
+                <TextInput
+                  style={[styles.input, focusedInput === 'conf' && styles.inputFocused]}
+                  placeholder="••••••••"
+                  placeholderTextColor="#86868b"
+                  secureTextEntry
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  onFocus={() => setFocusedInput('conf')}
+                  onBlur={() => setFocusedInput(null)}
+                />
+              </View>
+
               <TouchableOpacity style={styles.saveBtn} onPress={handleChangePassword} disabled={isSaving}>
-                {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>حفظ</Text>}
+                {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>تحديث كلمة المرور</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -170,28 +238,43 @@ export function ProfileMenu({ userName, isWeb, direction = 'down' }: ProfileMenu
             </View>
 
             <View style={styles.form}>
-              <TextInput
-                style={styles.input}
-                placeholder="الاسم الكامل"
-                placeholderTextColor="#86868b"
-                value={fullName}
-                onChangeText={setFullName}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="اسم المستخدم"
-                placeholderTextColor="#86868b"
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="سؤال الأمان: ما هو اسم أمك؟"
-                placeholderTextColor="#86868b"
-                value={securityAnswer}
-                onChangeText={setSecurityAnswer}
-              />
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>الاسم الكامل</Text>
+                <TextInput
+                  style={[styles.input, focusedInput === 'name' && styles.inputFocused]}
+                  placeholder="الاسم"
+                  placeholderTextColor="#86868b"
+                  value={fullName}
+                  onChangeText={setFullName}
+                  onFocus={() => setFocusedInput('name')}
+                  onBlur={() => setFocusedInput(null)}
+                />
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>اسم المستخدم</Text>
+                <TextInput
+                  style={[styles.input, focusedInput === 'uname' && styles.inputFocused]}
+                  placeholder="اسم المستخدم"
+                  placeholderTextColor="#86868b"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  onFocus={() => setFocusedInput('uname')}
+                  onBlur={() => setFocusedInput(null)}
+                />
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>سؤال الأمان</Text>
+                <TextInput
+                  style={[styles.input, focusedInput === 'sec' && styles.inputFocused]}
+                  placeholder="الإجابة"
+                  placeholderTextColor="#86868b"
+                  value={securityAnswer}
+                  onChangeText={setSecurityAnswer}
+                  onFocus={() => setFocusedInput('sec')}
+                  onBlur={() => setFocusedInput(null)}
+                />
+              </View>
               <TouchableOpacity style={styles.saveBtn} onPress={handleUpdateProfile} disabled={isSaving}>
                 {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>حفظ التغييرات</Text>}
               </TouchableOpacity>
@@ -237,19 +320,25 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' },
   modalContent: { backgroundColor: '#ffffff', width: '90%', borderRadius: 28, padding: 25, borderWidth: 1, borderColor: '#f2f2f7' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
-  modalTitle: { fontFamily: 'CairoBold', fontSize: 22, color: '#1d1d1f' },
-  form: { gap: 18 },
+  modalTitle: { fontFamily: 'CairoBold', fontSize: 16, color: '#1d1d1f' },
+  form: { gap: 10 },
+  inputGroup: { gap: 4 },
+  label: { fontFamily: 'CairoBold', fontSize: 11, color: '#1d1d1f', textAlign: 'right', marginRight: 4 },
   input: { 
     backgroundColor: '#fff', 
-    borderRadius: 16, 
-    padding: 16, 
+    borderRadius: 10, 
+    padding: 10, 
     color: '#1d1d1f', 
     fontFamily: 'Cairo', 
     textAlign: 'right', 
-    borderWidth: 1.5, 
-    borderColor: '#f2f2f7', 
-    fontSize: 15 
+    borderWidth: 1.2, 
+    borderColor: '#eee', 
+    fontSize: 13,
+    outlineStyle: 'none',
   },
-  saveBtn: { backgroundColor: '#1d1d1f', height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  saveBtnText: { color: '#fff', fontFamily: 'CairoBold', fontSize: 17 },
+  inputFocused: {
+    borderColor: '#1d1d1f',
+  },
+  saveBtn: { backgroundColor: '#1d1d1f', height: 42, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 5 },
+  saveBtnText: { color: '#fff', fontFamily: 'CairoBold', fontSize: 13 },
 });

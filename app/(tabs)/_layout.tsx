@@ -147,7 +147,12 @@ export default function TabLayout() {
   const isWorker = user?.role === 'employee'; 
 
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading) {
+      if (!user) {
+        router.replace('/login');
+        return;
+      }
+
       const isTryingAdmin = pathname === '/admin' || pathname.startsWith('/admin/');
       const isTryingIndex = pathname === '/';
       
@@ -156,6 +161,20 @@ export default function TabLayout() {
       }
     }
   }, [pathname, user, loading]);
+
+  // Security Guard: Anti-flash of unauthorized content
+  if (!loading && !user) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator color={Colors.primary} />
+      </View>
+    );
+  }
+
+  // Role Gate: Prevent unauthorized workers from seeing admin layouts
+  if (!loading && isWorker && (pathname === '/admin' || pathname.startsWith('/admin/'))) {
+    return null; // Or redirect component
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>

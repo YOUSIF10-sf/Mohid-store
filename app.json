@@ -7,8 +7,12 @@
     "icon": "./assets/images/smart-logo.png",
     "scheme": "mobileapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "com.yousiftariq.smartwarehouse",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
       "supportsTablet": true
     },
     "android": {
@@ -18,7 +22,8 @@
         "backgroundImage": "./assets/images/smart-logo.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.yousiftariq.smartwarehouse"
     },
     "web": {
       "output": "static",

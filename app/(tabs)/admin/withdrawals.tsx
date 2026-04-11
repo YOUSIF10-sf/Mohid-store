@@ -588,7 +588,7 @@ export default function ProfessionalWithdrawalSpreadsheet() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbfbfd' },
-  maxContainer: { flex: 1, paddingHorizontal: 12, paddingTop: 105 },
+  maxContainer: { flex: 1, paddingHorizontal: 12, paddingTop: 135 },
   header: { marginBottom: 15 },
   headerRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   headerTitle: { fontFamily: 'CairoBold', fontSize: 18, color: '#1d1d1f' },

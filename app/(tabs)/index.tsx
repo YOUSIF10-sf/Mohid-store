@@ -23,6 +23,7 @@ import { Colors } from '@/constants/theme';
 import { getApiClient } from '@/services/api';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/hooks/use-auth';
+import { BarChart } from 'react-native-chart-kit';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -32,6 +33,7 @@ interface Stats {
   out_of_stock: number;
   inventory_health: number;
   top_products: { name: string; withdrawals: number }[];
+  recent_products?: { name: string; current_quantity: number }[];
 }
 
 export default function UnifiedDashboardScreen() {
@@ -49,8 +51,20 @@ export default function UnifiedDashboardScreen() {
   const fetchStats = React.useCallback(async () => {
     try {
       const api = await getApiClient();
-      const response = await api.get('/api/stats');
-      setStats(response.data as Stats);
+      const [statsRes, productsRes] = await Promise.all([
+        api.get('/api/stats'),
+        api.get('/api/products')
+      ]);
+      
+      const statsData = statsRes.data as Stats;
+      const productsData = productsRes.data as any[];
+      
+      // Inject recent products into stats for the chart
+      statsData.recent_products = productsData
+        .slice(-5)
+        .map(p => ({ name: p.name, current_quantity: p.current_quantity }));
+
+      setStats(statsData);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     } finally {
@@ -83,6 +97,27 @@ export default function UnifiedDashboardScreen() {
     </View>
   );
 
+  const chartConfig = {
+    backgroundColor: '#ffffff',
+    backgroundGradientFrom: '#ffffff',
+    backgroundGradientTo: '#ffffff',
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(29, 29, 31, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(134, 134, 139, ${opacity})`,
+    style: { borderRadius: 16 },
+    propsForDots: { r: '6', strokeWidth: '2', stroke: '#1d1d1f' }
+  };
+
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <View style={styles.headerTop}>
+        <Zap size={16} color={Colors.primary} />
+        <Text style={styles.headerSubtitle}>إحصائيات النظام</Text>
+      </View>
+      <Text style={styles.headerTitle}>أداء المستودع اليوم.</Text>
+    </View>
+  );
+
   if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
@@ -99,34 +134,34 @@ export default function UnifiedDashboardScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.maxContainer}>
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <Zap size={16} color={Colors.primary} />
-            <Text style={styles.headerSubtitle}>إحصائيات النظام</Text>
-          </View>
-          <Text style={styles.headerTitle}>أداء المستودع اليوم.</Text>
-        </View>
+        {renderHeader()}
 
         <View style={styles.statsGrid}>
-          <StatCard 
-            title="المنتجات" 
-            value={stats?.total_products || 0} 
-            icon={Package} 
-            color="#1d1d1f"
-          />
-          <StatCard 
-            title="منتهية" 
-            value={stats?.out_of_stock || 0} 
-            icon={AlertTriangle} 
-            color={Colors.danger}
-          />
-          <StatCard 
-            title="الصحة" 
-            value={`${stats?.inventory_health || 0}%`} 
-            icon={TrendingUp} 
-            color={Colors.success}
-            subValue="مستوى التوفر"
-          />
+          <View style={styles.statCardWrapper}>
+            <StatCard 
+              title="المنتجات" 
+              value={stats?.total_products || 0} 
+              icon={Package} 
+              color="#1d1d1f"
+            />
+          </View>
+          <View style={styles.statCardWrapper}>
+            <StatCard 
+              title="منتهية" 
+              value={stats?.out_of_stock || 0} 
+              icon={AlertTriangle} 
+              color={Colors.danger}
+            />
+          </View>
+          <View style={styles.statCardWrapper}>
+            <StatCard 
+              title="الصحة" 
+              value={`${stats?.inventory_health || 0}%`} 
+              icon={TrendingUp} 
+              color={Colors.success}
+              subValue="مستوى التوفر"
+            />
+          </View>
         </View>
 
         <View style={styles.bottomSection}>
@@ -151,6 +186,55 @@ export default function UnifiedDashboardScreen() {
             </View>
           </View>
 
+          {stats && (
+            <View style={styles.chartsContainer}>
+              {stats.top_products.length > 0 && (
+                <View style={[styles.chartSection, !isWeb && { width: width - 36 }]}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>الأكثر سحباً (أداء)</Text>
+                    <TrendingUp size={14} color="#1d1d1f" />
+                  </View>
+                  <BarChart
+                    data={{
+                      labels: stats.top_products.slice(0, 5).map(p => p.name.substring(0, 6)),
+                      datasets: [{ data: stats.top_products.slice(0, 5).map(p => p.withdrawals) }]
+                    }}
+                    width={isWeb ? 500 : width - 64}
+                    height={180}
+                    yAxisLabel=""
+                    yAxisSuffix=""
+                    chartConfig={chartConfig}
+                    style={styles.chart}
+                  />
+                </View>
+              )}
+
+              {stats.recent_products && stats.recent_products.length > 0 && (
+                <View style={[styles.chartSection, !isWeb && { width: width - 36 }]}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>كميات المنتجات الجديدة</Text>
+                    <Package size={14} color="#1d1d1f" />
+                  </View>
+                  <BarChart
+                    data={{
+                      labels: stats.recent_products.map(p => p.name.substring(0, 6)),
+                      datasets: [{ data: stats.recent_products.map(p => p.current_quantity) }]
+                    }}
+                    width={isWeb ? 500 : width - 64}
+                    height={180}
+                    yAxisLabel=""
+                    yAxisSuffix=""
+                    chartConfig={{
+                      ...chartConfig,
+                      color: (opacity = 1) => `rgba(0, 113, 227, ${opacity})`,
+                    }}
+                    style={styles.chart}
+                  />
+                </View>
+              )}
+            </View>
+          )}
+
           <TouchableOpacity 
             style={styles.quickAction}
             onPress={() => router.push('/explore')}
@@ -174,12 +258,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#fbfbfd',
   },
   scrollContent: {
-    paddingTop: 105,
-    paddingBottom: 80,
+    paddingTop: 135,
+    paddingBottom: 100,
     alignItems: 'center',
   },
   maxContainer: {
     width: '100%',
+    maxWidth: isWeb ? 1100 : '100%',
     paddingHorizontal: 16,
   },
   loadingContainer: {
@@ -223,17 +308,25 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: 'row-reverse',
     flexWrap: 'wrap',
-    gap: 8,
+    marginHorizontal: -4,
     marginBottom: 16,
+    width: '100%',
+  },
+  statCardWrapper: {
+    width: isWeb ? '33.33%' : '50%',
+    padding: 6,
+    height: isWeb ? undefined : 110,
   },
   statCard: {
-    flex: 1,
-    minWidth: (width - 48) / 2,
     backgroundColor: '#ffffff',
     borderRadius: 14,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#d2d2d7',
+    padding: 12,
+    height: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 15,
+    elevation: 6,
   },
   iconContainer: {
     width: 28,
@@ -272,6 +365,27 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: '#d2d2d7',
+  },
+  chartSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#d2d2d7',
+    marginBottom: 12,
+    alignItems: 'center',
+    width: '100%',
+    minHeight: isWeb ? undefined : 240,
+  },
+  chartsContainer: {
+    flexDirection: isWeb ? 'row' : 'column',
+    gap: 12,
+    width: '100%',
+    marginBottom: 12,
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
   },
   sectionHeader: {
     flexDirection: 'row-reverse',

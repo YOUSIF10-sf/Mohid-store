@@ -88,33 +88,61 @@ export default function ProfessionalUserSpreadsheet() {
         security_answer: securityAnswer,
         ...(password && { password }) 
       };
-      if (isEditing && selectedUserId) await api.put(`/api/users/${selectedUserId}`, payload);
-      else await api.post('/api/users', payload);
-      setModalVisible(false);
-      resetForm();
+      
+      if (isEditing && selectedUserId) {
+        await api.put(`/api/users/${selectedUserId}`, payload);
+        setModalVisible(false);
+        resetForm();
+        if (isWeb) alert('تم تحديث بيانات الموظف بنجاح');
+      } else {
+        await api.post('/api/users', payload);
+        setModalVisible(false);
+        resetForm();
+        if (isWeb) alert('تم إنشاء حساب الموظف بنجاح');
+      }
+      
       await fetchUsers();
       setRefreshKey(prev => prev + 1);
-    } catch (error) {
-      if (isWeb) alert('تم فشل العملية');
-      else Alert.alert('خطأ', 'فشلت العملية');
+    } catch (error: any) {
+      console.error(error);
+      const errorMessage = error.response?.data?.message || 'تعذر إتمام العملية، يرجى المحاولة لاحقاً';
+      if (isWeb) alert(errorMessage);
+      else Alert.alert('خطأ', errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDelete = (id: number) => {
-    if (users.find(u => u.id === id)?.username === 'admin') return;
+    const targetUser = users.find(u => u.id === id);
+    if (targetUser?.username === 'admin') {
+      const msg = 'لا يمكن حذف حساب المدير الرئيسي';
+      isWeb ? alert(msg) : Alert.alert('تنبيه', msg);
+      return;
+    }
+
     const performDelete = async () => {
       try {
         const api = await getApiClient();
         await api.delete(`/api/users/${id}`);
-        fetchUsers();
-      } catch (error) { Alert.alert('خطأ', 'فشل الحذف'); }
+        await fetchUsers();
+        if (isWeb) alert('تم حذف المستخدم بنجاح');
+      } catch (error) { 
+        const msg = 'حدث خطأ أثناء محاولة الحذف';
+        isWeb ? alert(msg) : Alert.alert('خطأ', msg);
+      }
     };
-    Alert.alert('حذف', 'تأكيد الحذف؟', [
-      { text: 'إلغاء', style: 'cancel' },
-      { text: 'حذف', style: 'destructive', onPress: performDelete }
-    ]);
+
+    if (isWeb) {
+      if (window.confirm(`هل أنت متأكد من حذف المستخدم "${targetUser?.full_name}"؟`)) {
+        performDelete();
+      }
+    } else {
+      Alert.alert('تأكيد الحذف', `هل أنت متأكد من حذف ${targetUser?.full_name}؟`, [
+        { text: 'إلغاء', style: 'cancel' },
+        { text: 'حذف نهائي', style: 'destructive', onPress: performDelete }
+      ]);
+    }
   };
 
   const openEditModal = (user: UserData) => {
@@ -358,7 +386,14 @@ export default function ProfessionalUserSpreadsheet() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbfbfd' },
-  maxContainer: { flex: 1, paddingHorizontal: isWeb ? 40 : 16, paddingTop: isWeb ? 60 : 105 },
+  maxContainer: { 
+    flex: 1, 
+    width: '100%',
+    maxWidth: isWeb ? 1100 : '100%',
+    alignSelf: 'center',
+    paddingHorizontal: isWeb ? 40 : 16, 
+    paddingTop: isWeb ? 60 : 135 
+  },
   header: { marginBottom: 24 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   titleBox: { alignItems: 'flex-end' },
@@ -449,7 +484,7 @@ const styles = StyleSheet.create({
   cellTextSmall: { fontFamily: 'Cairo', fontSize: 10, color: '#1d1d1f' },
   cellTextMeta: { fontFamily: 'Cairo', fontSize: 9, color: '#86868b' },
   roleBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  actionCell: { flex: 0.5, flexDirection: 'row', justifyContent: 'center', gap: 10 },
+  actionCell: { flex: 0.5, flexDirection: 'row-reverse', justifyContent: 'center', gap: 10 },
   iconBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#f5f5f7', justifyContent: 'center', alignItems: 'center' },
   roleText: { fontFamily: 'CairoBold', fontSize: 11 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: isWeb ? 'center' : 'flex-end' },

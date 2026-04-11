@@ -371,7 +371,14 @@ export default function ProfessionalProductSpreadsheet() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbfbfd' },
-  maxContainer: { flex: 1, paddingHorizontal: isWeb ? 40 : 16, paddingTop: isWeb ? 60 : 105 },
+  maxContainer: { 
+    flex: 1, 
+    width: '100%',
+    maxWidth: isWeb ? 1100 : '100%',
+    alignSelf: 'center',
+    paddingHorizontal: isWeb ? 40 : 16, 
+    paddingTop: isWeb ? 60 : 135 
+  },
   header: { marginBottom: 24 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   titleBox: { alignItems: 'flex-end' },

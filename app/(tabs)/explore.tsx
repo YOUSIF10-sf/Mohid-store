@@ -19,9 +19,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Image as RNImage
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { useAuth } from '@/hooks/use-auth';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -33,6 +34,9 @@ interface Product {
   original_quantity: number;
   image_url: string;
 }
+
+// Module-level cache to keep data across focus/unfocus without global state complexity
+let productsCache: Product[] | null = null;
 
 export default function UnifiedStorefrontScreen() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -46,12 +50,15 @@ export default function UnifiedStorefrontScreen() {
   const [withdrawNote, setWithdrawNote] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
-  const fetchProducts = React.useCallback(async () => {
+  const fetchProducts = React.useCallback(async (showLoading = true) => {
+    if (showLoading && !productsCache) setLoading(true);
     try {
       const api = await getApiClient();
       const response = await api.get('/api/products');
-      setProducts(response.data as Product[]);
-      setFilteredProducts(response.data as Product[]);
+      const data = response.data as Product[];
+      setProducts(data);
+      setFilteredProducts(data);
+      productsCache = data; // Update cache
     } catch (error) {
       console.error(error);
     } finally {
@@ -62,7 +69,14 @@ export default function UnifiedStorefrontScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      fetchProducts();
+      if (productsCache) {
+        setProducts(productsCache);
+        setFilteredProducts(productsCache);
+        setLoading(false);
+        fetchProducts(false); // Background update
+      } else {
+        fetchProducts(true);
+      }
     }, [fetchProducts])
   );
 
@@ -107,71 +121,92 @@ export default function UnifiedStorefrontScreen() {
     }
   };
 
-  const ProductCard = ({ item }: { item: Product }) => {
+  const ProductCard = React.memo(({ item, index }: { item: Product; index: number }) => {
     const isOutOfStock = item.current_quantity <= 0;
     const hasImage = !!item.image_url;
 
     return (
-      <View style={[styles.card, isWeb && styles.webCard]}>
-        <View style={styles.imageContainer}>
-          {hasImage ? (
-            <Image source={{ uri: item.image_url }} style={styles.productImage} resizeMode="cover" />
-          ) : (
-            <ShoppingBag size={20} color="#d2d2d7" />
-          )}
-        </View>
+      <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+        <TouchableOpacity 
+          style={[styles.card, isWeb && styles.webCard]}
+          onPress={() => setSelectedProduct(item)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.imageContainer}>
+            {hasImage ? (
+              <ExpoImage 
+                source={{ uri: item.image_url }} 
+                style={styles.productImage} 
+                contentFit="cover" 
+                transition={200}
+                cachePolicy="memory-disk"
+              />
+            ) : (
+              <ShoppingBag size={20} color="#d2d2d7" />
+            )}
+          </View>
 
-        <View style={styles.cardContent}>
-          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
-          <Text style={[styles.stockValue, isOutOfStock && { color: Colors.danger }]}>
-            المتوفر: {item.current_quantity}
-          </Text>
+          <View style={styles.cardContent}>
+            <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+            <Text style={[styles.stockValue, isOutOfStock && { color: Colors.danger }]}>
+              المتوفر: {item.current_quantity}
+            </Text>
 
-          <TouchableOpacity
-            style={[styles.withdrawBtn, isOutOfStock && styles.withdrawBtnDisabled]}
-            disabled={isOutOfStock}
-            onPress={() => setSelectedProduct(item)}
-          >
-            <Archive size={14} color="#fff" />
-            <Text style={styles.withdrawBtnText}>سحب</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            <View style={[styles.withdrawBtn, isOutOfStock && styles.withdrawBtnDisabled]}>
+              <Archive size={14} color="#fff" />
+              <Text style={styles.withdrawBtnText}>سحب</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
     );
-  };
+  });
+
+  const SkeletonCard = () => (
+    <View style={[styles.card, isWeb && styles.webCard, { opacity: 0.5 }]}>
+      <View style={[styles.imageContainer, { backgroundColor: '#eee' }]} />
+      <View style={{ width: '80%', height: 10, backgroundColor: '#eee', marginTop: 10, borderRadius: 5 }} />
+      <View style={{ width: '50%', height: 10, backgroundColor: '#eee', marginTop: 10, borderRadius: 5 }} />
+    </View>
+  );
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>المخزن</Text>
-          <View style={styles.searchBox}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="بحث عن منتج..."
-              value={searchQuery}
-              onChangeText={handleSearch}
-            />
-            <Search size={18} color="#86868b" />
-          </View>
-        </View>
-
+      <View style={styles.maxContainer}>
         <FlatList
-          data={filteredProducts}
-          renderItem={({ item }) => <ProductCard item={item} />}
-          keyExtractor={item => item.id.toString()}
+          data={loading && !productsCache ? [1,2,3,4,5,6,7,8,9,10] : filteredProducts}
+          renderItem={loading && !productsCache 
+             ? () => <SkeletonCard /> 
+             : ({ item, index }) => <ProductCard item={item as Product} index={index} />
+          }
+          keyExtractor={(item, index) => loading && !productsCache ? `skel-${index}` : (item as Product).id.toString()}
           key={isWeb ? 'web-list' : 'mob-list'}
           numColumns={isWeb ? 5 : 2}
-          scrollEnabled={false}
           columnWrapperStyle={styles.columnWrapper}
-          contentContainerStyle={[styles.listContainer, isWeb && { flexDirection: 'row-reverse', flexWrap: 'wrap' }]}
+          contentContainerStyle={styles.listContainer}
+          ListHeaderComponent={
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>المخزن</Text>
+              <View style={styles.searchBox}>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="بحث عن منتج..."
+                  value={searchQuery}
+                  onChangeText={handleSearch}
+                />
+                <Search size={18} color="#86868b" />
+              </View>
+            </View>
+          }
           ListEmptyComponent={<Text style={styles.emptyText}>لا يوجد منتجات</Text>}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS !== 'web'} // Critical for native performance
         />
-      </ScrollView>
+      </View>
 
       <Modal visible={!!selectedProduct} transparent animationType="slide">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
@@ -201,7 +236,7 @@ export default function UnifiedStorefrontScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbfbfd' },
-  scrollContent: { paddingBottom: 40, paddingTop: 105 },
+  scrollContent: { paddingBottom: 40, paddingTop: 135 },
   header: { paddingHorizontal: 16, marginBottom: 12, alignItems: 'flex-end' },
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   headerLeftArea: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -229,11 +264,38 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1
   },
+  maxContainer: {
+    width: '100%',
+    maxWidth: isWeb ? 1100 : '100%',
+    alignSelf: 'center',
+  },
+  listWrapper: {
+    width: '100%',
+    maxWidth: isWeb ? 1100 : '100%',
+    alignSelf: 'center',
+  },
   searchInput: { flex: 1, fontFamily: 'Cairo', fontSize: 13, textAlign: 'right' },
-  listContainer: { paddingHorizontal: 8 },
+  listContainer: { 
+    paddingHorizontal: 8,
+    paddingTop: isWeb ? 10 : 135,
+    paddingBottom: 100,
+  },
   columnWrapper: { flexDirection: 'row-reverse', justifyContent: 'flex-start', gap: 10, marginBottom: 10 },
-  card: { width: (width - 48) / 2, backgroundColor: '#fff', borderRadius: 12, padding: 8, borderWidth: 1.5, borderColor: '#1d1d1f', alignItems: 'center' },
-  webCard: { width: 140, margin: 8 },
+  card: { 
+    width: (width - 48) / 2, 
+    backgroundColor: '#fff', 
+    borderRadius: 16, 
+    padding: 10, 
+    alignItems: 'center',
+    // Premium Floating Effect (Shadow/Elevation)
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 15,
+    elevation: 8,
+    marginBottom: 10,
+  },
+  webCard: { width: 160, margin: 10, padding: 15 },
   imageContainer: { width: '100%', height: 55, backgroundColor: '#f5f5f7', borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
   productImage: { width: '100%', height: '100%', borderRadius: 8 },
   cardContent: { width: '100%', alignItems: 'center' },
